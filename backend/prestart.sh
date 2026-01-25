@@ -61,42 +61,48 @@ from app.models.models import UserRole
 
 db = SessionLocal()
 
-# Check for existing super admin
-admin = db.query(User).filter(User.role == UserRole.SUPER_ADMIN).first()
-if not admin:
-    print('Creating default super admin...')
-    
-    # Create default region
-    region = db.query(Region).first()
-    if not region:
-        region = Region(name='Default Region', city='Default City', state='Default State')
-        db.add(region)
+try:
+    # Check for existing super admin
+    admin = db.query(User).filter(User.role == UserRole.SUPER_ADMIN).first()
+    if not admin:
+        print('Creating default super admin...')
+        
+        # Create default region (only name is required per the model)
+        region = db.query(Region).first()
+        if not region:
+            region = Region(name='Default Region', description='Default region for the platform')
+            db.add(region)
+            db.commit()
+            db.refresh(region)
+            print('Default region created')
+        
+        # Create super admin
+        admin = User(
+            email='admin@plugus.com',
+            hashed_password=get_password_hash('admin123'),
+            role=UserRole.SUPER_ADMIN,
+            is_active=True,
+            full_name='Super Admin'
+        )
+        db.add(admin)
         db.commit()
-        db.refresh(region)
-    
-    # Create super admin
-    admin = User(
-        email='admin@plugus.com',
-        hashed_password=get_password_hash('admin123'),
-        role=UserRole.SUPER_ADMIN,
-        is_active=True,
-        full_name='Super Admin'
-    )
-    db.add(admin)
-    db.commit()
-    print('Super admin created: admin@plugus.com / admin123')
-    
-    # Create default categories
-    default_categories = ['Plumbing', 'Electrical', 'Cleaning', 'AC Repair', 'Carpentry', 'Painting']
-    for cat_name in default_categories:
-        if not db.query(Category).filter(Category.name == cat_name).first():
-            db.add(Category(name=cat_name, is_default=True))
-    db.commit()
-    print('Default categories created')
-else:
-    print('Super admin already exists')
-
-db.close()
+        print('Super admin created: admin@plugus.com / admin123')
+        
+        # Create default categories
+        default_categories = ['Plumbing', 'Electrical', 'Cleaning', 'AC Repair', 'Carpentry', 'Painting']
+        for cat_name in default_categories:
+            if not db.query(Category).filter(Category.name == cat_name).first():
+                db.add(Category(name=cat_name, is_default=True))
+        db.commit()
+        print('Default categories created')
+    else:
+        print('Super admin already exists')
+except Exception as e:
+    print(f'Error during admin creation: {e}')
+    db.rollback()
+    raise
+finally:
+    db.close()
 "
 
 echo "=== Prestart complete ==="

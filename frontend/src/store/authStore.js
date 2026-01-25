@@ -92,5 +92,10 @@ export const useAuthStore = create((set, get) => ({
       console.error('Error removing token:', error);
     }
     set({ token: null, user: null });
+
+    // On web, reload the page to ensure clean navigation state
+    if (Platform.OS === 'web') {
+      window.location.href = '/';
+    }
   },
 }));

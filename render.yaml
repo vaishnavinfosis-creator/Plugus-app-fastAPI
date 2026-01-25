@@ -13,7 +13,7 @@ services:
     rootDir: .
     dockerfilePath: backend/Dockerfile
     plan: free
-    region: oregon 
+    region: oregon
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -30,7 +30,6 @@ services:
           property: connectionString
       - key: PORT
         value: 8000
-    startCommand: ./prestart.sh && uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   # Redis for Background Tasks
   - type: redis
@@ -44,10 +43,9 @@ services:
     name: plugus-frontend
     env: static
     plan: free
-    region: oregon
     rootDir: frontend
     buildCommand: npm install && npx expo export -p web
-    staticPublishPath: dist 
+    staticPublishPath: dist
     envVars:
       - key: EXPO_PUBLIC_API_URL
-        value: https://plugus-backend.onrender.com/api/v1 # Placeholder: Update this after backend deployment
+        value: https://plugus-backend.onrender.com/api/v1

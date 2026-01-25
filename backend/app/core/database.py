@@ -6,17 +6,17 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
 
 # Check if using SQLite
-is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+is_sqlite = settings.database_url_sync.startswith("sqlite")
 
 # Create engine with appropriate settings
 if is_sqlite:
     engine = create_engine(
-        settings.DATABASE_URL,
+        settings.database_url_sync,
         connect_args={"check_same_thread": False}
     )
 else:
     engine = create_engine(
-        settings.DATABASE_URL,
+        settings.database_url_sync,
         pool_pre_ping=True,
         pool_size=10,
         max_overflow=20

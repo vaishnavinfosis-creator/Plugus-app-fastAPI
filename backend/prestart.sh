@@ -2,8 +2,6 @@
 # Prestart script for Docker container
 # Runs before the main application starts
 
-set -e
-
 echo "=== Running prestart script ==="
 
 # Wait for database to be ready
@@ -17,6 +15,10 @@ database_url = os.environ.get('DATABASE_URL')
 if not database_url:
     print("DATABASE_URL not set, skipping DB check")
     exit(0)
+
+# Render uses postgres:// but psycopg2 needs postgresql://
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
 
 # Parse connection details
 max_retries = 30

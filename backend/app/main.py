@@ -36,6 +36,11 @@ async def lifespan(app: FastAPI):
     logger.info("Creating database tables...")
     Base.metadata.create_all(bind=engine)
     
+    # Auto-seed the superadmin if it doesn't exist
+    from reset_database import create_superadmin
+    logger.info("Ensuring superadmin exists...")
+    create_superadmin()
+    
     logger.info("Application startup complete")
     yield
     

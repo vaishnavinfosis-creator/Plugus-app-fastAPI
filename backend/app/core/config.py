@@ -31,9 +31,10 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://127.0.0.1:8081",
         "http://127.0.0.1:19006",
-        # Add production domains here
-        # "https://yourdomain.com",
-        # "https://www.yourdomain.com"
+        # Production domains
+        "https://plugus.net",
+        "https://www.plugus.net",
+        "https://plugus-frontend-tj3h.onrender.com"
     ]
     
     @property

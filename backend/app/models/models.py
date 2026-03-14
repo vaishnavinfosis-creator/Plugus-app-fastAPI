@@ -33,6 +33,8 @@ class BookingStatus(str, enum.Enum):
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
     PAYMENT_UPLOADED = "PAYMENT_UPLOADED"
+    PAYMENT_PENDING_VERIFICATION = "PAYMENT_PENDING_VERIFICATION"
+    PAYMENT_CONFIRMED = "PAYMENT_CONFIRMED"
     CANCELLED = "CANCELLED"
 
 
@@ -72,6 +74,7 @@ class Region(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    state: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     admin_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
@@ -296,6 +299,9 @@ class Review(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)  # 1-5
     comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_flagged: Mapped[bool] = mapped_column(Boolean, default=False)  # Flagged for moderation
+    is_approved: Mapped[bool] = mapped_column(Boolean, default=True)  # Admin approval status
+    moderation_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Why flagged
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
@@ -305,3 +311,18 @@ class Review(Base):
     # Relationships
     booking: Mapped["Booking"] = relationship("Booking", back_populates="review")
     user: Mapped["User"] = relationship("User", back_populates="reviews")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    user: Mapped["User"] = relationship("User")
+

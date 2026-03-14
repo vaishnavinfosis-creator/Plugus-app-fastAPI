@@ -3,17 +3,27 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
+import RevenueTile from '../../components/RevenueTile';
 
 export default function DashboardScreen({ navigation }) {
     const { user } = useAuthStore();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [revenue, setRevenue] = useState(null);
+    const [revenueLoading, setRevenueLoading] = useState(true);
+    const [revenueError, setRevenueError] = useState(null);
     const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+    const isRegionalAdmin = user?.role === 'REGIONAL_ADMIN';
 
     useEffect(() => {
         console.log('DashboardScreen mounted');
         fetchStats();
-    }, []);
+        if (isSuperAdmin) {
+            fetchPlatformRevenue();
+        } else if (isRegionalAdmin && user?.region_id) {
+            fetchRegionalRevenue(user.region_id);
+        }
+    }, [isSuperAdmin, isRegionalAdmin, user?.region_id]);
 
     const fetchStats = async () => {
         console.log('Fetching dashboard stats...');
@@ -35,6 +45,36 @@ export default function DashboardScreen({ navigation }) {
         }
     };
 
+    const fetchPlatformRevenue = async () => {
+        console.log('Fetching platform revenue...');
+        setRevenueLoading(true);
+        setRevenueError(null);
+        try {
+            const response = await client.get('/admin/revenue/platform');
+            setRevenue(response.data.total_revenue || 0);
+        } catch (e) {
+            console.error('Error fetching revenue:', e);
+            setRevenueError('Failed to load revenue');
+        } finally {
+            setRevenueLoading(false);
+        }
+    };
+
+    const fetchRegionalRevenue = async (regionId) => {
+        console.log('Fetching regional revenue for region:', regionId);
+        setRevenueLoading(true);
+        setRevenueError(null);
+        try {
+            const response = await client.get(`/admin/revenue/region/${regionId}`);
+            setRevenue(response.data.revenue || 0);
+        } catch (e) {
+            console.error('Error fetching regional revenue:', e);
+            setRevenueError('Failed to load revenue');
+        } finally {
+            setRevenueLoading(false);
+        }
+    };
+
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -53,6 +93,30 @@ export default function DashboardScreen({ navigation }) {
             </View>
 
             <ScrollView style={styles.content}>
+                {/* Revenue Tile for Super Admin */}
+                {isSuperAdmin && (
+                    <View style={styles.statsRow}>
+                        <RevenueTile
+                            totalRevenue={revenue}
+                            loading={revenueLoading}
+                            error={revenueError}
+                            onPress={() => navigation.navigate('RegionRevenue')}
+                        />
+                    </View>
+                )}
+
+                {/* Revenue Tile for Regional Admin */}
+                {isRegionalAdmin && (
+                    <View style={styles.statsRow}>
+                        <RevenueTile
+                            totalRevenue={revenue}
+                            loading={revenueLoading}
+                            error={revenueError}
+                            label="Regional Revenue"
+                        />
+                    </View>
+                )}
+
                 {/* Quick Stats */}
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>

@@ -19,11 +19,46 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6)
     role: UserRole = UserRole.CUSTOMER
+    region_id: Optional[int] = None  # Required for vendors
 
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetVerify(BaseModel):
+    token: str
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=6)
+
+
+class PasswordResetResponse(BaseModel):
+    message: str
+
+
+class PasswordResetVerifyResponse(BaseModel):
+    valid: bool
+    user_id: Optional[int] = None
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=6)
+
+
+class PasswordChangeResponse(BaseModel):
+    message: str
+
+
+
 
 
 class UserResponse(BaseModel):
@@ -98,12 +133,14 @@ class CategoryResponse(BaseModel):
 
 class RegionCreate(BaseModel):
     name: str
+    state: Optional[str] = None
     description: Optional[str] = None
 
 
 class RegionResponse(BaseModel):
     id: int
     name: str
+    state: Optional[str] = None
     description: Optional[str] = None
     is_active: bool
 
@@ -275,6 +312,9 @@ class ReviewResponse(BaseModel):
     booking_id: int
     rating: int
     comment: Optional[str] = None
+    is_flagged: bool = False
+    is_approved: bool = True
+    moderation_notes: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -305,3 +345,38 @@ class RegionTrafficResponse(BaseModel):
     total_customers: int
     total_vendors: int
     total_bookings: int
+
+
+class PlatformRevenueResponse(BaseModel):
+    total_revenue: float
+
+
+class RegionRevenueListResponse(BaseModel):
+    region_id: int
+    region_name: str
+    revenue: float
+
+
+class RegionalRevenueResponse(BaseModel):
+    region_id: int
+    revenue: float
+
+
+class TransactionDetailResponse(BaseModel):
+    transaction_id: int
+    amount: float
+    datetime: str
+    screenshot_url: Optional[str]
+
+
+class AdminWithRegionResponse(BaseModel):
+    id: int
+    email: str
+    full_name: Optional[str] = None
+    role: UserRole
+    is_active: bool
+    created_at: datetime
+    region: Optional[RegionResponse] = None
+
+    class Config:
+        from_attributes = True

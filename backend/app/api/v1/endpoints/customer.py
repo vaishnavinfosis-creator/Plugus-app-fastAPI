@@ -16,11 +16,42 @@ from app.schemas.schemas import (
     CategoryResponse, VendorListResponse, ServiceWithVendor,
     BookingCreate, BookingResponse, BookingDetailResponse,
     AddressCreate, AddressResponse, PhoneCreate, PhoneResponse,
-    ReviewCreate, ReviewResponse, ComplaintCreate, ComplaintResponse
+    ReviewCreate, ReviewResponse, ComplaintCreate, ComplaintResponse,
+    UserResponse
 )
 from app.api.deps import get_current_active_user, require_customer
 
 router = APIRouter()
+
+
+# ==================== PROFILE ====================
+
+@router.get("/profile", response_model=UserResponse)
+def get_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_customer)
+) -> Any:
+    """Get customer profile"""
+    return current_user
+
+
+@router.put("/profile")
+def update_profile(
+    full_name: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_customer)
+) -> Any:
+    """Update customer profile"""
+    if full_name is not None:
+        current_user.full_name = full_name
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    return {
+        "message": "Profile updated successfully",
+        "profile": UserResponse.model_validate(current_user)
+    }
 
 
 # ==================== CATEGORIES ====================
@@ -134,6 +165,18 @@ def create_address(
     current_user: User = Depends(require_customer)
 ) -> Any:
     """Add new address (max 2)"""
+    # Validate address fields
+    if not address_in.label or not address_in.label.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Address label is required"
+        )
+    if not address_in.address_text or not address_in.address_text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Address text is required"
+        )
+    
     if len(current_user.addresses) >= 2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -148,6 +191,73 @@ def create_address(
     db.commit()
     db.refresh(address)
     return address
+
+
+@router.put("/addresses/{address_id}", response_model=AddressResponse)
+def update_address(
+    address_id: int,
+    address_in: AddressCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_customer)
+) -> Any:
+    """Update an existing address"""
+    # Validate address fields
+    if not address_in.label or not address_in.label.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Address label is required"
+        )
+    if not address_in.address_text or not address_in.address_text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Address text is required"
+        )
+    
+    address = db.query(Address).filter(
+        Address.id == address_id,
+        Address.user_id == current_user.id
+    ).first()
+    
+    if not address:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Address not found"
+        )
+    
+    # Update fields
+    address.label = address_in.label
+    address.address_text = address_in.address_text
+    address.latitude = address_in.latitude
+    address.longitude = address_in.longitude
+    address.is_default = address_in.is_default
+    
+    db.commit()
+    db.refresh(address)
+    return address
+
+
+@router.delete("/addresses/{address_id}")
+def delete_address(
+    address_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_customer)
+) -> Any:
+    """Delete an address"""
+    address = db.query(Address).filter(
+        Address.id == address_id,
+        Address.user_id == current_user.id
+    ).first()
+    
+    if not address:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Address not found"
+        )
+    
+    db.delete(address)
+    db.commit()
+    
+    return {"message": "Address deleted successfully"}
 
 
 # ==================== PHONE NUMBERS ====================
@@ -168,6 +278,23 @@ def create_phone(
     current_user: User = Depends(require_customer)
 ) -> Any:
     """Add new phone number (max 2)"""
+    # Validate phone number
+    import re
+    phone_pattern = re.compile(r'^\+?[1-9]\d{1,14}$')  # E.164 format
+    if not phone_in.number or not phone_in.number.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Phone number is required"
+        )
+    
+    # Basic validation - allow digits, spaces, hyphens, parentheses, and plus sign
+    cleaned_number = re.sub(r'[\s\-\(\)]', '', phone_in.number)
+    if not re.match(r'^\+?\d{10,15}$', cleaned_number):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid phone number format"
+        )
+    
     if len(current_user.phone_numbers) >= 2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -182,6 +309,74 @@ def create_phone(
     db.commit()
     db.refresh(phone)
     return phone
+
+
+@router.put("/phones/{phone_id}", response_model=PhoneResponse)
+def update_phone(
+    phone_id: int,
+    phone_in: PhoneCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_customer)
+) -> Any:
+    """Update an existing phone number"""
+    # Validate phone number
+    import re
+    if not phone_in.number or not phone_in.number.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Phone number is required"
+        )
+    
+    # Basic validation - allow digits, spaces, hyphens, parentheses, and plus sign
+    cleaned_number = re.sub(r'[\s\-\(\)]', '', phone_in.number)
+    if not re.match(r'^\+?\d{10,15}$', cleaned_number):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid phone number format"
+        )
+    
+    phone = db.query(PhoneNumber).filter(
+        PhoneNumber.id == phone_id,
+        PhoneNumber.user_id == current_user.id
+    ).first()
+    
+    if not phone:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Phone number not found"
+        )
+    
+    # Update fields
+    phone.number = phone_in.number
+    phone.is_default = phone_in.is_default
+    
+    db.commit()
+    db.refresh(phone)
+    return phone
+
+
+@router.delete("/phones/{phone_id}")
+def delete_phone(
+    phone_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_customer)
+) -> Any:
+    """Delete a phone number"""
+    phone = db.query(PhoneNumber).filter(
+        PhoneNumber.id == phone_id,
+        PhoneNumber.user_id == current_user.id
+    ).first()
+    
+    if not phone:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Phone number not found"
+        )
+    
+    db.delete(phone)
+    db.commit()
+    
+    return {"message": "Phone number deleted successfully"}
 
 
 # ==================== BOOKINGS ====================

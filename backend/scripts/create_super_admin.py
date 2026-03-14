@@ -20,9 +20,14 @@ def create_super_admin():
     
     try:
         # Check if super admin exists
-        admin = db.query(User).filter(User.role == UserRole.SUPER_ADMIN).first()
+        admin = db.query(User).filter(
+            User.role == UserRole.SUPER_ADMIN,
+            User.is_active == True
+        ).first()
+        
         if admin:
-            print(f"Super Admin already exists: {admin.email}")
+            print(f"✓ Super Admin already exists: {admin.email}")
+            print("  Only one Super Admin is allowed in the system.")
             return
         
         # Create super admin

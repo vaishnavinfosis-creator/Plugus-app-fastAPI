@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
@@ -13,7 +13,29 @@ export default function RegisterScreen({ navigation }) {
     const [businessName, setBusinessName] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [regions, setRegions] = useState([]);
+    const [selectedRegion, setSelectedRegion] = useState(null);
+    const [loadingRegions, setLoadingRegions] = useState(false);
     const { setToken } = useAuthStore();
+
+    useEffect(() => {
+        if (role === 'VENDOR') {
+            fetchRegions();
+        }
+    }, [role]);
+
+    const fetchRegions = async () => {
+        setLoadingRegions(true);
+        try {
+            const res = await client.get('/auth/regions');
+            setRegions(res.data || []);
+        } catch (e) {
+            console.error('Failed to fetch regions:', e);
+            Alert.alert('Error', 'Failed to load regions. Please try again.');
+        } finally {
+            setLoadingRegions(false);
+        }
+    };
 
     const handleRegister = async () => {
         if (!email.trim() || !password) {
@@ -28,9 +50,15 @@ export default function RegisterScreen({ navigation }) {
             Alert.alert('Error', 'Password must be at least 6 characters');
             return;
         }
-        if (role === 'VENDOR' && !businessName.trim()) {
-            Alert.alert('Error', 'Please enter business name');
-            return;
+        if (role === 'VENDOR') {
+            if (!businessName.trim()) {
+                Alert.alert('Error', 'Please enter business name');
+                return;
+            }
+            if (!selectedRegion) {
+                Alert.alert('Error', 'Please select a region');
+                return;
+            }
         }
 
         setLoading(true);
@@ -44,7 +72,7 @@ export default function RegisterScreen({ navigation }) {
 
             if (role === 'VENDOR') {
                 payload.business_name = businessName.trim();
-                payload.region_id = 1; // Default region
+                payload.region_id = selectedRegion;
             }
 
             const res = await client.post('/auth/register', payload);
@@ -143,16 +171,47 @@ export default function RegisterScreen({ navigation }) {
                     </View>
 
                     {role === 'VENDOR' && (
-                        <View style={styles.inputContainer}>
-                            <Ionicons name="storefront-outline" size={20} color="#666" style={styles.inputIcon} />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Business Name *"
-                                value={businessName}
-                                onChangeText={setBusinessName}
-                                placeholderTextColor="#999"
-                            />
-                        </View>
+                        <>
+                            <View style={styles.inputContainer}>
+                                <Ionicons name="storefront-outline" size={20} color="#666" style={styles.inputIcon} />
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Business Name *"
+                                    value={businessName}
+                                    onChangeText={setBusinessName}
+                                    placeholderTextColor="#999"
+                                />
+                            </View>
+
+                            <View style={styles.regionSection}>
+                                <Text style={styles.regionLabel}>Select Region *</Text>
+                                {loadingRegions ? (
+                                    <ActivityIndicator size="small" color="#1E88E5" style={styles.regionLoader} />
+                                ) : regions.length === 0 ? (
+                                    <Text style={styles.noRegionsText}>No regions available</Text>
+                                ) : (
+                                    <View style={styles.regionsList}>
+                                        {regions.map(region => (
+                                            <TouchableOpacity
+                                                key={region.id}
+                                                style={[
+                                                    styles.regionChip,
+                                                    selectedRegion === region.id && styles.regionChipSelected
+                                                ]}
+                                                onPress={() => setSelectedRegion(region.id)}
+                                            >
+                                                <Text style={[
+                                                    styles.regionChipText,
+                                                    selectedRegion === region.id && styles.regionChipTextSelected
+                                                ]}>
+                                                    {region.name}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                )}
+                            </View>
+                        </>
                     )}
 
                     <View style={styles.inputContainer}>
@@ -279,5 +338,21 @@ const styles = StyleSheet.create({
     registerButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
     loginLink: { alignItems: 'center', marginTop: 25 },
     loginLinkText: { color: '#666', fontSize: 15 },
-    loginLinkBold: { color: '#1E88E5', fontWeight: '600' }
+    loginLinkBold: { color: '#1E88E5', fontWeight: '600' },
+    regionSection: { marginBottom: 15 },
+    regionLabel: { fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 10 },
+    regionLoader: { marginVertical: 10 },
+    noRegionsText: { color: '#999', fontSize: 14, textAlign: 'center', paddingVertical: 10 },
+    regionsList: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    regionChip: {
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        borderWidth: 1.5,
+        borderColor: '#1E88E5',
+        backgroundColor: '#fff'
+    },
+    regionChipSelected: { backgroundColor: '#1E88E5' },
+    regionChipText: { fontSize: 14, fontWeight: '500', color: '#1E88E5' },
+    regionChipTextSelected: { color: '#fff' }
 });

@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, 
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 
-export default function VendorsScreen() {
+export default function VendorsScreen({ navigation }) {
     const [vendors, setVendors] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -49,6 +49,13 @@ export default function VendorsScreen() {
         } catch (e) {
             Alert.alert('Error', e.response?.data?.detail || 'Failed to update');
         }
+    };
+
+    const handleViewTransactions = (vendor) => {
+        navigation.navigate('VendorTransactions', {
+            vendorId: vendor.id,
+            vendorName: vendor.business_name
+        });
     };
 
     if (loading) {
@@ -126,20 +133,29 @@ export default function VendorsScreen() {
                                 </>
                             )}
                             {item.is_approved && (
-                                <TouchableOpacity
-                                    style={[styles.actionBtn, {
-                                        backgroundColor: item.is_visible ? '#FF9800' : '#1E88E5'
-                                    }]}
-                                    onPress={() => handleToggleVisibility(item)}
-                                >
-                                    <Ionicons
-                                        name={item.is_visible ? 'eye-off' : 'eye'}
-                                        size={18} color="#fff"
-                                    />
-                                    <Text style={styles.actionBtnText}>
-                                        {item.is_visible ? 'Hide' : 'Show'}
-                                    </Text>
-                                </TouchableOpacity>
+                                <>
+                                    <TouchableOpacity
+                                        style={[styles.actionBtn, {
+                                            backgroundColor: item.is_visible ? '#FF9800' : '#1E88E5'
+                                        }]}
+                                        onPress={() => handleToggleVisibility(item)}
+                                    >
+                                        <Ionicons
+                                            name={item.is_visible ? 'eye-off' : 'eye'}
+                                            size={18} color="#fff"
+                                        />
+                                        <Text style={styles.actionBtnText}>
+                                            {item.is_visible ? 'Hide' : 'Show'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.actionBtn, { backgroundColor: '#9C27B0' }]}
+                                        onPress={() => handleViewTransactions(item)}
+                                    >
+                                        <Ionicons name="receipt" size={18} color="#fff" />
+                                        <Text style={styles.actionBtnText}>Transactions</Text>
+                                    </TouchableOpacity>
+                                </>
                             )}
                         </View>
                     </View>

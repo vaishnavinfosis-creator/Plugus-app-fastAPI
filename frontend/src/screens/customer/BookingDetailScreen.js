@@ -69,8 +69,11 @@ export default function BookingDetailScreen({ route, navigation }) {
     };
 
     const handleComplaint = () => {
-        // Navigate to complaint screen
-        Alert.alert('Complaint', 'Complaint functionality coming soon!');
+        // Navigate to complaint screen with booking ID
+        navigation.navigate('Complaints', {
+            screen: 'CreateComplaint',
+            params: { bookingId: booking.id }
+        });
     };
 
     if (loading) {

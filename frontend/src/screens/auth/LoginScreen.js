@@ -1,23 +1,46 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import client from '../../api/client';
+import client, { getStructuredError } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
+import ErrorDisplay from '../../components/ErrorDisplay';
+import FormField from '../../components/FormField';
 
 export default function LoginScreen({ navigation }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState(null);
+    const [fieldErrors, setFieldErrors] = useState({});
     const { setToken } = useAuthStore();
 
     const handleLogin = async () => {
-        if (!email.trim() || !password) {
-            Alert.alert('Error', 'Please enter email and password');
+        // Clear previous errors
+        setError(null);
+        setFieldErrors({});
+
+        // Field-level validation
+        const errors = {};
+        if (!email.trim()) {
+            errors.email = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+            errors.email = 'Please enter a valid email address';
+        }
+        
+        if (!password) {
+            errors.password = 'Password is required';
+        } else if (password.length < 6) {
+            errors.password = 'Password must be at least 6 characters';
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setFieldErrors(errors);
             return;
         }
 
         setLoading(true);
+
         try {
             console.log('Attempting login for:', email.trim());
 
@@ -27,28 +50,49 @@ export default function LoginScreen({ navigation }) {
             params.append('password', password);
 
             const res = await client.post('/auth/login', params.toString(), {
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                timeout: 10000 // 10 second timeout
             });
 
             console.log('Login successful, setting token');
             await setToken(res.data.access_token);
         } catch (e) {
             console.error('Login error:', e);
-            const status = e.response?.status;
-            const detail = e.response?.data?.detail;
-
-            if (status === 404) {
-                Alert.alert('User Not Found', 'This email is not registered. Please register first.');
-            } else if (status === 401) {
-                Alert.alert('Login Failed', 'Incorrect password. Please try again.');
-            } else if (e.code === 'ERR_NETWORK') {
-                Alert.alert('Network Error', 'Cannot connect to server. Make sure backend is running on port 8000.');
-            } else {
-                Alert.alert('Error', detail || e.message || 'Login failed. Please try again.');
+            
+            // Use structured error helper
+            const structuredError = getStructuredError(e);
+            
+            // Handle specific error codes with custom messages
+            if (structuredError.error_code === 'UNKNOWN_ERROR' && e.response?.status) {
+                const status = e.response.status;
+                if (status === 404) {
+                    structuredError.error_code = 'USER_NOT_FOUND';
+                    structuredError.message = 'Email not found. Please register first.';
+                    structuredError.details = { email: email.trim() };
+                } else if (status === 401) {
+                    structuredError.error_code = 'INVALID_PASSWORD';
+                    structuredError.message = 'Incorrect password. Please try again.';
+                    structuredError.details = { email: email.trim() };
+                } else if (status === 400) {
+                    structuredError.error_code = 'ACCOUNT_INACTIVE';
+                    structuredError.message = 'Your account has been deactivated. Please contact support.';
+                    structuredError.details = { email: email.trim() };
+                }
             }
+            
+            setError(structuredError);
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleRetry = () => {
+        setError(null);
+        handleLogin();
+    };
+
+    const handleDismissError = () => {
+        setError(null);
     };
 
     return (
@@ -71,37 +115,40 @@ export default function LoginScreen({ navigation }) {
                     <Text style={styles.title}>Welcome Back</Text>
                     <Text style={styles.subtitle}>Sign in to continue</Text>
 
-                    <View style={styles.inputContainer}>
-                        <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Email"
-                            value={email}
-                            onChangeText={setEmail}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            placeholderTextColor="#999"
+                    {error && (
+                        <ErrorDisplay
+                            error={error}
+                            onRetry={['CONNECTION_TIMEOUT', 'SERVICE_UNAVAILABLE'].includes(error.error_code) ? handleRetry : null}
+                            onDismiss={handleDismissError}
+                            showRetry={['CONNECTION_TIMEOUT', 'SERVICE_UNAVAILABLE'].includes(error.error_code)}
+                            style={styles.errorContainer}
                         />
-                    </View>
+                    )}
 
-                    <View style={styles.inputContainer}>
-                        <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Password"
-                            value={password}
-                            onChangeText={setPassword}
-                            secureTextEntry={!showPassword}
-                            placeholderTextColor="#999"
-                        />
-                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                            <Ionicons
-                                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                                size={20}
-                                color="#666"
-                            />
-                        </TouchableOpacity>
-                    </View>
+                    <FormField
+                        label="Email"
+                        icon="mail-outline"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChangeText={setEmail}
+                        error={fieldErrors.email}
+                        onClearError={() => setFieldErrors({ ...fieldErrors, email: null })}
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                    />
+
+                    <FormField
+                        label="Password"
+                        icon="lock-closed-outline"
+                        placeholder="Enter your password"
+                        value={password}
+                        onChangeText={setPassword}
+                        error={fieldErrors.password}
+                        onClearError={() => setFieldErrors({ ...fieldErrors, password: null })}
+                        secureTextEntry={!showPassword}
+                        rightIcon={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        onRightIconPress={() => setShowPassword(!showPassword)}
+                    />
 
                     <TouchableOpacity
                         style={[styles.loginButton, loading && styles.loginButtonDisabled]}
@@ -176,5 +223,8 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: '#1E88E5'
     },
-    registerButtonText: { color: '#1E88E5', fontSize: 16, fontWeight: '600' }
+    registerButtonText: { color: '#1E88E5', fontSize: 16, fontWeight: '600' },
+    errorContainer: {
+        marginBottom: 20,
+    },
 });

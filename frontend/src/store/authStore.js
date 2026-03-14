@@ -87,10 +87,24 @@ export const useAuthStore = create((set, get) => ({
   // Logout
   logout: async () => {
     try {
+      // Call backend logout endpoint if token exists
+      const token = get().token;
+      if (token) {
+        try {
+          await client.post('/auth/logout');
+        } catch (error) {
+          // Continue with logout even if backend call fails
+          console.error('Error calling logout endpoint:', error);
+        }
+      }
+      
+      // Clear token from storage
       await storage.removeItem('token');
     } catch (error) {
-      console.error('Error removing token:', error);
+      console.error('Error during logout:', error);
     }
+    
+    // Clear authentication state
     set({ token: null, user: null });
 
     // On web, reload the page to ensure clean navigation state

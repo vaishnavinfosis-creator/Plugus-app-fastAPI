@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "jest"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -29,5 +30,17 @@
     "react-native-web": "^0.21.0",
     "zustand": "^5.0.10"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@babel/preset-env": "^7.29.0",
+    "@babel/preset-react": "^7.28.5",
+    "@expo/vector-icons": "^15.0.3",
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^13.3.3",
+    "babel-jest": "^30.2.0",
+    "babel-preset-expo": "^54.0.10",
+    "fast-check": "^4.5.3",
+    "jest": "^30.2.0",
+    "react-test-renderer": "^19.1.0"
+  }
 }

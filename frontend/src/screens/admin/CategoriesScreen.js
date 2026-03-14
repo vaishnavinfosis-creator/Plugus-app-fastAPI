@@ -3,6 +3,7 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, 
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
+import CategoryIcon from '../../components/CategoryIcon';
 
 export default function CategoriesScreen() {
     const { user } = useAuthStore();
@@ -94,8 +95,8 @@ export default function CategoriesScreen() {
                 renderItem={({ item }) => (
                     <View style={styles.categoryCard}>
                         <View style={styles.categoryIcon}>
-                            <Ionicons
-                                name={item.icon || 'grid'}
+                            <CategoryIcon
+                                iconName={item.icon}
                                 size={24}
                                 color="#1E88E5"
                             />

@@ -1,12 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import client from '../../api/client';
 
 export default function ProfileScreen({ navigation }) {
-    const { user, logout } = useAuthStore();
+    const { user, logout, setUser } = useAuthStore();
     const [isEditing, setIsEditing] = useState(false);
-    const [fullName, setFullName] = useState(user?.full_name || '');
+    const [fullName, setFullName] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [addresses, setAddresses] = useState([]);
+    const [phoneNumbers, setPhoneNumbers] = useState([]);
+
+    useEffect(() => {
+        fetchProfile();
+        fetchAddresses();
+        fetchPhoneNumbers();
+    }, []);
+
+    const fetchProfile = async () => {
+        try {
+            const response = await client.get('/customer/profile');
+            setFullName(response.data.full_name || '');
+            setUser(response.data);
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+        }
+    };
+
+    const fetchAddresses = async () => {
+        try {
+            const response = await client.get('/customer/addresses');
+            setAddresses(response.data);
+        } catch (error) {
+            console.error('Error fetching addresses:', error);
+        }
+    };
+
+    const fetchPhoneNumbers = async () => {
+        try {
+            const response = await client.get('/customer/phones');
+            setPhoneNumbers(response.data);
+        } catch (error) {
+            console.error('Error fetching phone numbers:', error);
+        }
+    };
 
     const handleLogout = () => {
         Alert.alert(
@@ -20,9 +58,102 @@ export default function ProfileScreen({ navigation }) {
     };
 
     const handleSave = async () => {
-        // TODO: Implement profile update API
-        setIsEditing(false);
-        Alert.alert('Success', 'Profile updated');
+        if (!fullName.trim()) {
+            Alert.alert('Error', 'Please enter your full name');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await client.put('/customer/profile', null, {
+                params: { full_name: fullName }
+            });
+            
+            // Update user in auth store
+            if (response.data.profile) {
+                setUser(response.data.profile);
+            }
+            
+            setIsEditing(false);
+            Alert.alert('Success', 'Profile updated successfully');
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            Alert.alert('Error', error.response?.data?.detail || 'Failed to update profile');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAddAddress = () => {
+        if (addresses.length >= 2) {
+            Alert.alert('Limit Reached', 'You can only have up to 2 addresses');
+            return;
+        }
+        navigation.navigate('AddAddress', { onSuccess: fetchAddresses });
+    };
+
+    const handleEditAddress = (address) => {
+        navigation.navigate('EditAddress', { address, onSuccess: fetchAddresses });
+    };
+
+    const handleDeleteAddress = (addressId) => {
+        Alert.alert(
+            'Delete Address',
+            'Are you sure you want to delete this address?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await client.delete(`/customer/addresses/${addressId}`);
+                            Alert.alert('Success', 'Address deleted successfully');
+                            fetchAddresses();
+                        } catch (error) {
+                            console.error('Error deleting address:', error);
+                            Alert.alert('Error', error.response?.data?.detail || 'Failed to delete address');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const handleAddPhone = () => {
+        if (phoneNumbers.length >= 2) {
+            Alert.alert('Limit Reached', 'You can only have up to 2 phone numbers');
+            return;
+        }
+        navigation.navigate('AddPhone', { onSuccess: fetchPhoneNumbers });
+    };
+
+    const handleEditPhone = (phone) => {
+        navigation.navigate('EditPhone', { phone, onSuccess: fetchPhoneNumbers });
+    };
+
+    const handleDeletePhone = (phoneId) => {
+        Alert.alert(
+            'Delete Phone Number',
+            'Are you sure you want to delete this phone number?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await client.delete(`/customer/phones/${phoneId}`);
+                            Alert.alert('Success', 'Phone number deleted successfully');
+                            fetchPhoneNumbers();
+                        } catch (error) {
+                            console.error('Error deleting phone:', error);
+                            Alert.alert('Error', error.response?.data?.detail || 'Failed to delete phone number');
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     return (
@@ -76,31 +207,112 @@ export default function ProfileScreen({ navigation }) {
                                 placeholder="Enter full name"
                             />
                         ) : (
-                            <Text style={styles.infoValue}>{user?.full_name || 'Not set'}</Text>
+                            <Text style={styles.infoValue}>{fullName || 'Not set'}</Text>
                         )}
                     </View>
 
                     {isEditing && (
-                        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                            <Text style={styles.saveButtonText}>Save Changes</Text>
+                        <TouchableOpacity 
+                            style={[styles.saveButton, loading && styles.saveButtonDisabled]} 
+                            onPress={handleSave}
+                            disabled={loading}
+                        >
+                            <Text style={styles.saveButtonText}>
+                                {loading ? 'Saving...' : 'Save Changes'}
+                            </Text>
                         </TouchableOpacity>
+                    )}
+                </View>
+
+                {/* Addresses Section */}
+                <View style={styles.card}>
+                    <View style={styles.cardHeader}>
+                        <Text style={styles.cardTitle}>Addresses</Text>
+                        {addresses.length < 2 && (
+                            <TouchableOpacity onPress={handleAddAddress}>
+                                <Ionicons name="add-circle" size={24} color="#1E88E5" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {addresses.length === 0 ? (
+                        <Text style={styles.emptyText}>No addresses added yet</Text>
+                    ) : (
+                        addresses.map((address) => (
+                            <View key={address.id} style={styles.itemRow}>
+                                <View style={styles.itemContent}>
+                                    <Text style={styles.itemLabel}>{address.label}</Text>
+                                    <Text style={styles.itemValue}>{address.address_text}</Text>
+                                    {address.is_default && (
+                                        <View style={styles.defaultBadge}>
+                                            <Text style={styles.defaultText}>Default</Text>
+                                        </View>
+                                    )}
+                                </View>
+                                <View style={styles.itemActions}>
+                                    <TouchableOpacity 
+                                        onPress={() => handleEditAddress(address)}
+                                        style={styles.actionButton}
+                                    >
+                                        <Ionicons name="create-outline" size={20} color="#1E88E5" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        onPress={() => handleDeleteAddress(address.id)}
+                                        style={styles.actionButton}
+                                    >
+                                        <Ionicons name="trash-outline" size={20} color="#E53935" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ))
+                    )}
+                </View>
+
+                {/* Phone Numbers Section */}
+                <View style={styles.card}>
+                    <View style={styles.cardHeader}>
+                        <Text style={styles.cardTitle}>Phone Numbers</Text>
+                        {phoneNumbers.length < 2 && (
+                            <TouchableOpacity onPress={handleAddPhone}>
+                                <Ionicons name="add-circle" size={24} color="#1E88E5" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {phoneNumbers.length === 0 ? (
+                        <Text style={styles.emptyText}>No phone numbers added yet</Text>
+                    ) : (
+                        phoneNumbers.map((phone) => (
+                            <View key={phone.id} style={styles.itemRow}>
+                                <View style={styles.itemContent}>
+                                    <Text style={styles.itemValue}>{phone.number}</Text>
+                                    {phone.is_default && (
+                                        <View style={styles.defaultBadge}>
+                                            <Text style={styles.defaultText}>Default</Text>
+                                        </View>
+                                    )}
+                                </View>
+                                <View style={styles.itemActions}>
+                                    <TouchableOpacity 
+                                        onPress={() => handleEditPhone(phone)}
+                                        style={styles.actionButton}
+                                    >
+                                        <Ionicons name="create-outline" size={20} color="#1E88E5" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity 
+                                        onPress={() => handleDeletePhone(phone.id)}
+                                        style={styles.actionButton}
+                                    >
+                                        <Ionicons name="trash-outline" size={20} color="#E53935" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ))
                     )}
                 </View>
 
                 {/* Menu Items */}
                 <View style={styles.menuCard}>
-                    <TouchableOpacity style={styles.menuItem}>
-                        <Ionicons name="location-outline" size={22} color="#666" />
-                        <Text style={styles.menuText}>Manage Addresses</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#ccc" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.menuItem}>
-                        <Ionicons name="call-outline" size={22} color="#666" />
-                        <Text style={styles.menuText}>Manage Phone Numbers</Text>
-                        <Ionicons name="chevron-forward" size={20} color="#ccc" />
-                    </TouchableOpacity>
-
                     <TouchableOpacity style={styles.menuItem}>
                         <Ionicons name="notifications-outline" size={22} color="#666" />
                         <Text style={styles.menuText}>Notifications</Text>
@@ -199,7 +411,60 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 10
     },
+    saveButtonDisabled: {
+        backgroundColor: '#90CAF9'
+    },
     saveButtonText: { color: '#fff', fontWeight: '600' },
+    itemRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0'
+    },
+    itemContent: {
+        flex: 1,
+        marginRight: 10
+    },
+    itemLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 4
+    },
+    itemValue: {
+        fontSize: 14,
+        color: '#666'
+    },
+    itemActions: {
+        flexDirection: 'row',
+        alignItems: 'center'
+    },
+    actionButton: {
+        padding: 8,
+        marginLeft: 4
+    },
+    defaultBadge: {
+        marginTop: 4,
+        backgroundColor: '#E3F2FD',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+        alignSelf: 'flex-start'
+    },
+    defaultText: {
+        fontSize: 10,
+        color: '#1E88E5',
+        fontWeight: '600'
+    },
+    emptyText: {
+        fontSize: 14,
+        color: '#999',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        paddingVertical: 10
+    },
     menuCard: {
         backgroundColor: '#fff',
         marginHorizontal: 15,

@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
+import FormField from '../../components/FormField';
 
 export default function DashboardScreen({ navigation }) {
     const { user } = useAuthStore();
@@ -21,11 +22,13 @@ export default function DashboardScreen({ navigation }) {
     const [servicePrice, setServicePrice] = useState('');
     const [serviceDuration, setServiceDuration] = useState('60');
     const [categoryId, setCategoryId] = useState('1');
+    const [serviceErrors, setServiceErrors] = useState({});
 
     // Worker form
     const [workerEmail, setWorkerEmail] = useState('');
     const [workerPassword, setWorkerPassword] = useState('');
     const [workerName, setWorkerName] = useState('');
+    const [workerErrors, setWorkerErrors] = useState({});
 
     useEffect(() => {
         fetchData();
@@ -47,10 +50,28 @@ export default function DashboardScreen({ navigation }) {
     };
 
     const handleAddService = async () => {
-        if (!serviceName.trim() || !servicePrice) {
-            Alert.alert('Error', 'Please fill required fields');
+        // Clear previous errors
+        setServiceErrors({});
+
+        // Field-level validation
+        const errors = {};
+        if (!serviceName.trim()) {
+            errors.serviceName = 'Service name is required';
+        }
+        if (!servicePrice) {
+            errors.servicePrice = 'Price is required';
+        } else if (isNaN(parseFloat(servicePrice)) || parseFloat(servicePrice) <= 0) {
+            errors.servicePrice = 'Please enter a valid price';
+        }
+        if (serviceDuration && (isNaN(parseInt(serviceDuration)) || parseInt(serviceDuration) <= 0)) {
+            errors.serviceDuration = 'Please enter a valid duration';
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setServiceErrors(errors);
             return;
         }
+
         try {
             await client.post('/vendor/services', {
                 name: serviceName,
@@ -69,10 +90,27 @@ export default function DashboardScreen({ navigation }) {
     };
 
     const handleAddWorker = async () => {
-        if (!workerEmail.trim() || !workerPassword) {
-            Alert.alert('Error', 'Please fill required fields');
+        // Clear previous errors
+        setWorkerErrors({});
+
+        // Field-level validation
+        const errors = {};
+        if (!workerEmail.trim()) {
+            errors.workerEmail = 'Email is required';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(workerEmail.trim())) {
+            errors.workerEmail = 'Please enter a valid email address';
+        }
+        if (!workerPassword) {
+            errors.workerPassword = 'Password is required';
+        } else if (workerPassword.length < 6) {
+            errors.workerPassword = 'Password must be at least 6 characters';
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setWorkerErrors(errors);
             return;
         }
+
         try {
             await client.post('/vendor/workers', {
                 email: workerEmail,
@@ -109,12 +147,14 @@ export default function DashboardScreen({ navigation }) {
         setServiceDesc('');
         setServicePrice('');
         setServiceDuration('60');
+        setServiceErrors({});
     };
 
     const resetWorkerForm = () => {
         setWorkerEmail('');
         setWorkerPassword('');
         setWorkerName('');
+        setWorkerErrors({});
     };
 
     if (loading) {
@@ -229,31 +269,42 @@ export default function DashboardScreen({ navigation }) {
                             </TouchableOpacity>
                         </View>
                         <ScrollView>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Service Name *"
+                            <FormField
+                                label="Service Name"
+                                icon="briefcase-outline"
+                                placeholder="Enter service name"
                                 value={serviceName}
                                 onChangeText={setServiceName}
+                                error={serviceErrors.serviceName}
+                                onClearError={() => setServiceErrors({ ...serviceErrors, serviceName: null })}
                             />
-                            <TextInput
-                                style={[styles.input, { height: 80 }]}
-                                placeholder="Description"
+                            <FormField
+                                label="Description"
+                                icon="document-text-outline"
+                                placeholder="Enter service description"
                                 value={serviceDesc}
                                 onChangeText={setServiceDesc}
                                 multiline
+                                numberOfLines={3}
                             />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Price (₹) *"
+                            <FormField
+                                label="Price (₹)"
+                                icon="cash-outline"
+                                placeholder="Enter price"
                                 value={servicePrice}
                                 onChangeText={setServicePrice}
+                                error={serviceErrors.servicePrice}
+                                onClearError={() => setServiceErrors({ ...serviceErrors, servicePrice: null })}
                                 keyboardType="numeric"
                             />
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Duration (minutes)"
+                            <FormField
+                                label="Duration (minutes)"
+                                icon="time-outline"
+                                placeholder="Enter duration"
                                 value={serviceDuration}
                                 onChangeText={setServiceDuration}
+                                error={serviceErrors.serviceDuration}
+                                onClearError={() => setServiceErrors({ ...serviceErrors, serviceDuration: null })}
                                 keyboardType="numeric"
                             />
                             <TouchableOpacity style={styles.submitButton} onPress={handleAddService}>
@@ -274,24 +325,31 @@ export default function DashboardScreen({ navigation }) {
                                 <Ionicons name="close" size={24} color="#666" />
                             </TouchableOpacity>
                         </View>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Worker Email *"
+                        <FormField
+                            label="Worker Email"
+                            icon="mail-outline"
+                            placeholder="Enter worker email"
                             value={workerEmail}
                             onChangeText={setWorkerEmail}
+                            error={workerErrors.workerEmail}
+                            onClearError={() => setWorkerErrors({ ...workerErrors, workerEmail: null })}
                             keyboardType="email-address"
                             autoCapitalize="none"
                         />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Password *"
+                        <FormField
+                            label="Password"
+                            icon="lock-closed-outline"
+                            placeholder="Enter password"
                             value={workerPassword}
                             onChangeText={setWorkerPassword}
+                            error={workerErrors.workerPassword}
+                            onClearError={() => setWorkerErrors({ ...workerErrors, workerPassword: null })}
                             secureTextEntry
                         />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Full Name"
+                        <FormField
+                            label="Full Name (Optional)"
+                            icon="person-outline"
+                            placeholder="Enter full name"
                             value={workerName}
                             onChangeText={setWorkerName}
                         />

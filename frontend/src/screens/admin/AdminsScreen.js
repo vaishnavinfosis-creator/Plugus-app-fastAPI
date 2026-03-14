@@ -63,7 +63,14 @@ export default function AdminsScreen() {
             Alert.alert('Success', 'Regional Admin created');
         } catch (e) {
             console.log('Error adding admin:', e);
-            Alert.alert('Error', e.response?.data?.detail || 'Failed to create admin');
+            const errorMessage = e.response?.data?.detail || 'Failed to create admin';
+            
+            // Show specific validation error for duplicate email
+            if (errorMessage === 'Email already exists') {
+                Alert.alert('Validation Error', 'Email already exists. Please use a different email address.');
+            } else {
+                Alert.alert('Error', errorMessage);
+            }
         } finally {
             setSubmitting(false);
         }
@@ -81,9 +88,12 @@ export default function AdminsScreen() {
                     onPress: async () => {
                         try {
                             await client.delete(`/admin/admins/${id}`);
-                            fetchData();
+                            // Refresh the admin list after successful deletion
+                            await fetchData();
+                            Alert.alert('Success', 'Admin removed successfully');
                         } catch (e) {
-                            Alert.alert('Error', 'Failed to delete admin');
+                            console.log('Error deleting admin:', e);
+                            Alert.alert('Error', e.response?.data?.detail || 'Failed to delete admin');
                         }
                     }
                 }
@@ -98,9 +108,6 @@ export default function AdminsScreen() {
     };
 
     const renderAdminItem = ({ item }) => {
-        // Find region for this admin
-        const region = regions.find(r => r.admin_id === item.id);
-
         return (
             <View style={styles.card}>
                 <View style={styles.cardContent}>
@@ -110,7 +117,7 @@ export default function AdminsScreen() {
                     <View style={styles.info}>
                         <Text style={styles.email}>{item.email}</Text>
                         <Text style={styles.region}>
-                            {region ? `Region: ${region.name}` : 'No Region Assigned'}
+                            {item.region ? `Region: ${item.region.name}` : 'No Region Assigned'}
                         </Text>
                     </View>
                 </View>

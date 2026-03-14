@@ -12,6 +12,12 @@ import VendorListScreen from '../screens/customer/VendorListScreen';
 import VendorServicesScreen from '../screens/customer/VendorServicesScreen';
 import BookServiceScreen from '../screens/customer/BookServiceScreen';
 import WorkerTrackingScreen from '../screens/customer/WorkerTrackingScreen';
+import ComplaintsScreen from '../screens/customer/ComplaintsScreen';
+import CreateComplaintScreen from '../screens/customer/CreateComplaintScreen';
+import AddAddressScreen from '../screens/customer/AddAddressScreen';
+import EditAddressScreen from '../screens/customer/EditAddressScreen';
+import AddPhoneScreen from '../screens/customer/AddPhoneScreen';
+import EditPhoneScreen from '../screens/customer/EditPhoneScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -39,6 +45,29 @@ function BookingsStack() {
     );
 }
 
+// Complaints Stack - View and create complaints
+function ComplaintsStack() {
+    return (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="ComplaintsList" component={ComplaintsScreen} />
+            <Stack.Screen name="CreateComplaint" component={CreateComplaintScreen} />
+        </Stack.Navigator>
+    );
+}
+
+// Profile Stack - Profile and settings
+function ProfileStack() {
+    return (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+            <Stack.Screen name="AddAddress" component={AddAddressScreen} />
+            <Stack.Screen name="EditAddress" component={EditAddressScreen} />
+            <Stack.Screen name="AddPhone" component={AddPhoneScreen} />
+            <Stack.Screen name="EditPhone" component={EditPhoneScreen} />
+        </Stack.Navigator>
+    );
+}
+
 export default function CustomerNavigator() {
     return (
         <Tab.Navigator
@@ -49,6 +78,8 @@ export default function CustomerNavigator() {
                         iconName = focused ? 'home' : 'home-outline';
                     } else if (route.name === 'Bookings') {
                         iconName = focused ? 'calendar' : 'calendar-outline';
+                    } else if (route.name === 'Complaints') {
+                        iconName = focused ? 'chatbox' : 'chatbox-outline';
                     } else if (route.name === 'Profile') {
                         iconName = focused ? 'person' : 'person-outline';
                     }
@@ -61,7 +92,8 @@ export default function CustomerNavigator() {
         >
             <Tab.Screen name="Home" component={HomeStack} />
             <Tab.Screen name="Bookings" component={BookingsStack} />
-            <Tab.Screen name="Profile" component={ProfileScreen} />
+            <Tab.Screen name="Complaints" component={ComplaintsStack} />
+            <Tab.Screen name="Profile" component={ProfileStack} />
         </Tab.Navigator>
     );
 }

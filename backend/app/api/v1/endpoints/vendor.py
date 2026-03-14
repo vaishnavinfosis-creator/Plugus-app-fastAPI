@@ -12,7 +12,7 @@ from app.core.security import get_password_hash
 from app.core.state_machine import BookingStateMachine
 from app.models.models import (
     User, UserRole, Vendor, Service, Worker, Booking, BookingStatus,
-    BookingStatusHistory, Complaint
+    BookingStatusHistory, Complaint, Category
 )
 from app.schemas.schemas import (
     ServiceCreate, ServiceResponse, WorkerCreate, WorkerResponse,
@@ -49,6 +49,15 @@ def create_service(
     vendor = current_user.vendor_profile
     if not vendor:
         raise HTTPException(status_code=400, detail="Vendor profile not found")
+    
+    # Validate category_id is provided and not null
+    if not service_in.category_id:
+        raise HTTPException(status_code=400, detail="Category selection is required before creating a service")
+    
+    # Verify category exists
+    category = db.query(Category).filter(Category.id == service_in.category_id).first()
+    if not category:
+        raise HTTPException(status_code=400, detail="Selected category does not exist")
     
     service = Service(
         vendor_id=vendor.id,

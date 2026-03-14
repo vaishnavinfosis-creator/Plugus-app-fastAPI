@@ -5,10 +5,13 @@ from typing import Optional, List
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from jose import jwt, JWTError
 
 from app.core.database import get_db
 from app.core.security import decode_token
 from app.models.models import User, UserRole
+from app.schemas.errors import ErrorResponse, AuthErrorCodes
+from app.core.config import settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
@@ -18,19 +21,57 @@ async def get_current_user(
     token: str = Depends(oauth2_scheme)
 ) -> User:
     """Get current authenticated user from JWT token"""
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
     
+    # First, check if token is expired by trying to decode it directly
+    try:
+        jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        # Token has expired - return specific error
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ErrorResponse(
+                error_code=AuthErrorCodes.TOKEN_EXPIRED,
+                message="Your session has expired. Please log in again.",
+                details=None
+            ).dict(),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except JWTError:
+        # Other JWT errors (invalid signature, malformed token, etc.)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ErrorResponse(
+                error_code=AuthErrorCodes.TOKEN_INVALID,
+                message="Could not validate credentials",
+                details=None
+            ).dict(),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Now decode to get user_id
     user_id = decode_token(token)
     if user_id is None:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ErrorResponse(
+                error_code=AuthErrorCodes.TOKEN_INVALID,
+                message="Could not validate credentials",
+                details=None
+            ).dict(),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=ErrorResponse(
+                error_code=AuthErrorCodes.USER_NOT_FOUND,
+                message="User not found",
+                details=None
+            ).dict(),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     return user
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import client from '../../api/client';
+import CategoryIcon from '../../components/CategoryIcon';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 60) / 3;
@@ -42,8 +43,7 @@ export default function HomeScreen({ navigation }) {
     };
 
     const renderIcon = (icon) => {
-        if (!icon) return <Text style={styles.noIcon}>📦</Text>;
-        return <Ionicons name={icon} size={36} color="#1E88E5" />;
+        return <CategoryIcon iconName={icon} size={36} color="#1E88E5" />;
     };
 
     const handleCategoryPress = (category) => {

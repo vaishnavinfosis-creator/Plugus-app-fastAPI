@@ -41,6 +41,10 @@ def decode_token(token: str) -> Optional[int]:
         if user_id is None:
             return None
         return int(user_id)
+    except jwt.ExpiredSignatureError:
+        # Token has expired - return None to indicate invalid token
+        # The caller should handle this appropriately
+        return None
     except JWTError:
         return None
 

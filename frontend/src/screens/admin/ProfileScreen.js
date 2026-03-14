@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Platform } from
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
     const { user, logout } = useAuthStore();
 
     const handleLogout = () => {
@@ -42,6 +42,15 @@ export default function ProfileScreen() {
                         </Text>
                     </View>
                 </View>
+
+                <TouchableOpacity 
+                    style={styles.changePasswordButton} 
+                    onPress={() => navigation.navigate('ChangePassword')}
+                >
+                    <Ionicons name="key-outline" size={22} color="#1E88E5" />
+                    <Text style={styles.changePasswordText}>Change Password</Text>
+                    <Ionicons name="chevron-forward" size={20} color="#999" />
+                </TouchableOpacity>
 
                 <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                     <Ionicons name="log-out-outline" size={22} color="#E53935" />
@@ -84,6 +93,23 @@ const styles = StyleSheet.create({
         borderRadius: 20
     },
     roleText: { color: '#1E88E5', fontWeight: '600', fontSize: 12 },
+    changePasswordButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        padding: 15,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E3F2FD',
+        marginBottom: 10
+    },
+    changePasswordText: { 
+        color: '#1E88E5', 
+        fontWeight: '600', 
+        marginLeft: 8, 
+        fontSize: 16,
+        flex: 1
+    },
     logoutButton: {
         flexDirection: 'row',
         alignItems: 'center',
